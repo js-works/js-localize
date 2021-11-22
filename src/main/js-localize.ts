@@ -1,6 +1,17 @@
-// === exports =======================================================
+import {
+  formatDate,
+  formatNumber,
+  formatRelativeTime,
+  getCalendarWeek,
+  getFirstDayOfWeek,
+  getWeekendDays,
+  parseDate,
+  parseNumber
+} from './internal/utils'
 
 import { Dictionary } from 'internal/dict'
+
+// === exports =======================================================
 
 export {
   // -- functions ---
@@ -9,7 +20,7 @@ export {
   localize,
   check,
   // --- types ---
-  Behavior,
+  Localization as Behavior,
   Category,
   Localizer,
   Terms,
@@ -25,16 +36,7 @@ export {
 
 declare global {
   namespace Localize {
-    interface TranslationsMap {
-      'jsCockpit.dialogs': {
-        ok: string
-        cancel: string
-      }
-
-      'jsCockpit.dataExplorer': {
-        loadingMessage: string
-      }
-    }
+    interface TranslationsMap {}
   }
 }
 
@@ -59,9 +61,15 @@ type TermsOf<A> = A extends Record<Lang, Record<infer C, infer T>>
   ? C extends Category
     ? T
     : never
+  : A extends Category
+  ? A extends keyof TranslationsMap
+    ? TranslationsMap[A] extends Terms
+      ? TranslationsMap[A]
+      : never
+    : never
   : never
 
-type Behavior = Readonly<{
+type Localization = Readonly<{
   translate<
     C extends keyof TranslationsMap,
     K extends keyof TranslationsMap[C]
@@ -137,15 +145,11 @@ type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
   ? A
   : never
 
-// === singleton dictionary ==========================================
-
-const dict = new Dictionary()
-
 // === addToDict =====================================================
 
 function addToDict<
   C extends keyof TranslationsMap,
-  T extends Record<Lang, Record<C, TranslationsMap[C]>>
+  T extends Record<Lang, Partial<Record<C, TranslationsMap[C]>>>
 >(translations: T) {
   for (const [language, data] of Object.entries(translations)) {
     for (const [category, terms] of Object.entries(data as any)) {
@@ -158,12 +162,51 @@ function addToDict<
 
 // === init ==========================================================
 
-function init() {}
+function init(params: {
+  defaultLocale?: string
+
+  customize?(
+    self: Localization,
+    base: Localization,
+    defaultLocale: string
+  ): Partial<Localization>
+}): void {
+  if (isFinal) {
+    throw (
+      'Illegal invocation of `init(...)`' +
+      '- must only be used at start of the app' +
+      ' before any other localization function has been used'
+    )
+  }
+
+  isFinal = true
+
+  if (params.defaultLocale) {
+    defaultLocale = params.defaultLocale
+  }
+
+  if (params.customize) {
+    const self = { ...baseBehavior }
+
+    behavior = Object.assign(
+      self,
+      params.customize(self, baseBehavior, defaultLocale)
+    )
+  }
+}
 
 // === localize ======================================================
 
-function localize() {
-  console.log('woohoo')
+function localize(
+  localeOrGetLocale: string | null | (() => string | null)
+): Localizer {
+  const getLocale =
+    typeof localeOrGetLocale === 'function'
+      ? () => localeOrGetLocale() || defaultLocale
+      : () => localeOrGetLocale || defaultLocale
+
+  isFinal = true
+  return createLocalizer(getLocale, behavior)
 }
 
 // === check ==========================================================
@@ -190,10 +233,130 @@ const tr = {
       cancel: 'Cancel'
     },
 
-    'jsCockpit.dataExplorer': {
-      loadingMessage: 'xxx'
+    //   'jsCockpit.dataExplorer': {
+    //     loadingMessage: 'xxx'
+    //   },
+
+    'jsCockpit.loginForm': {
+      loadingMessage: 'x' // TODOOOOOOOOOOOOOOOOOO
     }
   }
 }
 
 addToDict(tr)
+
+// === local data ====================================================
+
+// singleton dictionary to store the translations
+const dict = new Dictionary()
+
+// flag that indicates whether an initial customizing
+// of the localization behavior is still possible or not
+let isFinal = false
+
+// default locale is "en-US", but this can be customized
+// by using the `init` function
+let defaultLocale = 'en-US'
+
+// === local functions ===============================================
+
+const baseBehavior: Localization = {
+  translate: dict.translate.bind(dict) as any, // TODO
+  formatNumber,
+  formatDate,
+  parseNumber,
+  parseDate,
+  formatRelativeTime,
+  getFirstDayOfWeek,
+  getCalendarWeek,
+  getWeekendDays
+}
+
+let behavior: Localization = {
+  ...baseBehavior,
+
+  translate(locale, category, key, replacements?) {
+    let translation = baseBehavior.translate(
+      locale,
+      category,
+      key,
+      replacements
+    )
+
+    if (translation === null && defaultLocale !== locale) {
+      translation = baseBehavior.translate(
+        defaultLocale,
+        category,
+        key,
+        replacements
+      )
+    }
+
+    return translation
+  }
+}
+
+function createLocalizer(
+  getLocale: () => string,
+  i18n: Localization
+): Localizer {
+  const localizer: Localizer = {
+    getLocale,
+
+    translate: (category, key, replacements?) =>
+      i18n.translate(getLocale(), category, key, replacements) || '',
+
+    parseNumber: (numberString) => i18n.parseNumber(getLocale(), numberString),
+    parseDate: (dateString) => i18n.parseDate(getLocale(), dateString),
+
+    formatNumber: (number, format) =>
+      i18n.formatNumber(getLocale(), number, format),
+
+    formatDate: (date, format) => i18n.formatDate(getLocale(), date, format),
+
+    formatRelativeTime: (number, unit, format) =>
+      i18n.formatRelativeTime(getLocale(), number, unit, format),
+
+    getFirstDayOfWeek: () => i18n.getFirstDayOfWeek(getLocale()),
+    getWeekendDays: () => i18n.getWeekendDays(getLocale()),
+    getCalendarWeek: (date: Date) => i18n.getCalendarWeek(getLocale(), date),
+
+    getDayName(index, format = 'long') {
+      const date = new Date(1970, 0, 4 + (index % 7))
+
+      return new Intl.DateTimeFormat(getLocale(), { weekday: format }).format(
+        date
+      )
+    },
+
+    getDayNames(format = 'long') {
+      const arr: string[] = []
+
+      for (let i = 0; i < 7; ++i) {
+        arr.push(localizer.getDayName(i, format))
+      }
+
+      return arr
+    },
+
+    getMonthName(index, format = 'long') {
+      const date = new Date(1970, index % 12, 1)
+
+      return new Intl.DateTimeFormat(getLocale(), { month: format }).format(
+        date
+      )
+    },
+
+    getMonthNames(format = 'long') {
+      const arr: string[] = []
+
+      for (let i = 0; i < 12; ++i) {
+        arr.push(localizer.getMonthName(i, format))
+      }
+
+      return arr
+    }
+  }
+
+  return localizer
+}

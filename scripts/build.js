@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 try {
   del.sync('./dist')
 
-  for (const format of ['esm' /*, 'cjs'*/]) {
+  for (const format of ['esm', 'cjs']) {
     const outfile = `./dist/js-localize.${format}.js`
 
     esbuild

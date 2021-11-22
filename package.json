@@ -2,7 +2,7 @@
   "name": "js-localize",
   "version": "0.0.1",
   "description": "",
-  "main": "./dist/js-localize.esm.js",
+  "main": "./dist/js-localize.cjs.js",
   "module": "./dist/js-localize.esm.js",
   "types": "./dist/types/js-localize.d.ts",
   "type": "module",
