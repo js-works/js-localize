@@ -1,0 +1,33 @@
+{
+  "name": "js-localize",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./dist/js-localize.esm.js",
+  "module": "./dist/js-localize.esm.js",
+  "types": "./dist/types/js-localize.d.ts",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node ./scripts/build.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/js-works/js-localize.git"
+  },
+  "author": "",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/js-works/js-localize/issues"
+  },
+  "homepage": "https://github.com/js-works/js-localize#readme",
+  "devDependencies": {
+    "del": "^6.0.0",
+    "esbuild": "^0.13.15"
+  },
+  "dependencies": {
+    "typescript": "^4.5.2"
+  }
+}
