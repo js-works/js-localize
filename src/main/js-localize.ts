@@ -1,11 +1,13 @@
 // === exports =======================================================
 
+import { Dictionary } from 'internal/dict'
+
 export {
   // -- functions ---
   addToDict,
   init,
   localize,
-  check
+  check,
   // --- types ---
   Behavior,
   Category,
@@ -25,9 +27,9 @@ declare global {
   namespace Localize {
     interface TranslationsMap {
       'jsCockpit.dialogs': {
-        ok: string,
+        ok: string
         cancel: string
-      },
+      }
 
       'jsCockpit.dataExplorer': {
         loadingMessage: string
@@ -129,24 +131,30 @@ type RelativeTimeUnit = Intl.RelativeTimeFormatUnit
 
 type Lang = string
 type TranslationsMap = Localize.TranslationsMap
-
-type TranslationsValid<A> = A extends Record<Lang, Record<infer C, infer T>>
-  ? C extends keyof TranslationsMap 
-    ? T extends TranslationsMap[C] 
-      ? A
-      : never
-    : never
-  : never
-
 type FirstArg<T> = T extends (arg: infer A) => any ? A : never
 
 type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
   ? A
   : never
 
+// === singleton dictionary ==========================================
+
+const dict = new Dictionary()
+
 // === addToDict =====================================================
 
-function addToDict() {}
+function addToDict<
+  C extends keyof TranslationsMap,
+  T extends Record<Lang, Record<C, TranslationsMap[C]>>
+>(translations: T) {
+  for (const [language, data] of Object.entries(translations)) {
+    for (const [category, terms] of Object.entries(data as any)) {
+      for (const [key, value] of Object.entries(terms as any)) {
+        dict.addTranslation(language, category, key, value as any)
+      }
+    }
+  }
+}
 
 // === init ==========================================================
 
@@ -162,33 +170,30 @@ function localize() {
 
 function check<
   C extends keyof TranslationsMap,
-  T extends Record<Lang, Record<C, TranslationsMap[C]>> 
->(
-  translations: T
-): T
+  T extends Record<Lang, Record<C, TranslationsMap[C]>>
+>(translations: T): T
 
 function check<
   B extends string,
   C extends keyof TranslationsMap,
-  T extends Record<Lang, Record<StartsWith<C, `${B}`>, TranslationsMap[C]>>
->(
-  pattern: `${B}*`,
-  translations: T
-): T
+  T extends Record<Lang, Record<StartsWith<C, B>, TranslationsMap[C]>>
+>(pattern: `${B}*`, translations: T): T
 
 function check(arg1: any, arg2?: any) {
   return typeof arg1 === 'string' ? arg2 : arg1
 }
 
-const tr = check('jsCockpit.*', {
-  'en': {
+const tr = {
+  en: {
     'jsCockpit.dialogs': {
       ok: 'Okay',
       cancel: 'Cancel'
     },
 
     'jsCockpit.dataExplorer': {
-      loadingMessage: 'xxx',
+      loadingMessage: 'xxx'
     }
   }
-})
+}
+
+addToDict(tr)
