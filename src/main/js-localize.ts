@@ -226,25 +226,6 @@ function check(arg1: any, arg2?: any) {
   return typeof arg1 === 'string' ? arg2 : arg1
 }
 
-const tr = {
-  en: {
-    'jsCockpit.dialogs': {
-      ok: 'Okay',
-      cancel: 'Cancel'
-    },
-
-    //   'jsCockpit.dataExplorer': {
-    //     loadingMessage: 'xxx'
-    //   },
-
-    'jsCockpit.loginForm': {
-      loadingMessage: 'x' // TODOOOOOOOOOOOOOOOOOO
-    }
-  }
-}
-
-addToDict(tr)
-
 // === local data ====================================================
 
 // singleton dictionary to store the translations

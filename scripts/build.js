@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 try {
   del.sync('./dist')
 
-  for (const format of ['esm', 'cjs']) {
+  for (const format of ['esm' /*, 'cjs'*/]) {
     const outfile = `./dist/js-localize.${format}.js`
 
     esbuild
@@ -15,8 +15,8 @@ try {
         bundle: true,
         outfile,
         tsconfig: './tsconfig.json',
-        target: 'es2020',
-        minify: true,
+        target: 'es2018',
+        minify: false,
         sourcemap: true,
         format,
         define: {
