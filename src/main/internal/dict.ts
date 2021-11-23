@@ -1,19 +1,19 @@
-import { getLocaleInfo } from "./utils";
+import { getLocaleInfo } from './utils'
 
 // === exports =======================================================
 
-export { Dictionary };
+export { Dict }
 
 // === constants =====================================================
 
-const SEP = "|@:_:_:_:@|"; // TODO
+const SEP = '|@:_:_:_:@|' // TODO
 
 // === Dictionary ====================================================
 
-class Dictionary {
+class Dict {
   // --- private -----------------------------------------------------
 
-  #translations = new Map<string, string | Function>();
+  #translations = new Map<string, string | Function>()
 
   // --- public ------------------------------------------------------
 
@@ -26,7 +26,7 @@ class Dictionary {
     this.#translations.set(
       `${locale}${SEP}${category}${SEP}${key}`,
       translation
-    );
+    )
   }
 
   translate(
@@ -35,16 +35,16 @@ class Dictionary {
     key: string,
     params?: Record<string, any>
   ): string | null {
-    const { baseName, language } = getLocaleInfo(locale);
+    const { baseName, language } = getLocaleInfo(locale)
 
     let ret =
-      this.#translations.get(`${locale}${SEP}${category}${SEP}${key}`) || null;
+      this.#translations.get(`${locale}${SEP}${category}${SEP}${key}`) || null
 
     if (ret === null && locale) {
       if (baseName !== locale) {
         ret =
           this.#translations.get(`${baseName}${SEP}${category}${SEP}${key}`) ||
-          null;
+          null
       }
 
       if (ret === null) {
@@ -52,24 +52,24 @@ class Dictionary {
           ret =
             this.#translations.get(
               `${language}${SEP}${category}${SEP}${key}`
-            ) || null;
+            ) || null
         }
       }
     }
 
     if (ret !== null && params) {
-      if (typeof ret !== "function") {
-        console.log(ret); // TODO
+      if (typeof ret !== 'function') {
+        console.log(ret) // TODO
 
         throw new Error(
           `Invalid translation parameters for category ${category} key "${key}" in locale "${locale}"`
-        );
+        )
       }
 
-      ret = String(ret(params));
+      ret = String(ret(params))
     }
 
-    console.log("--->", locale, category, key, ":::", ret);
-    return ret === null ? ret : String(ret);
+    console.log('--->', locale, category, key, ':::', ret)
+    return ret === null ? ret : String(ret)
   }
 }

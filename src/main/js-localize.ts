@@ -9,7 +9,7 @@ import {
   parseNumber
 } from './internal/utils'
 
-import { Dictionary } from 'internal/dict'
+import { Dict } from 'internal/dict'
 
 // === exports =======================================================
 
@@ -229,7 +229,7 @@ function check(arg1: any, arg2?: any) {
 // === local data ====================================================
 
 // singleton dictionary to store the translations
-const dict = new Dictionary()
+const dict = new Dict()
 
 // flag that indicates whether an initial customizing
 // of the localization behavior is still possible or not
