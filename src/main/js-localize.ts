@@ -51,12 +51,6 @@ type Terms<
 
 type Translations = Record<Lang, Record<Category, Terms>>
 
-type CategoriesOf<A> = A extends Record<Lang, Record<infer C, Terms>>
-  ? C extends Category
-    ? C
-    : never
-  : never
-
 type TermsOf<A> = A extends Record<Lang, Record<infer C, infer T>>
   ? C extends Category
     ? T
@@ -149,7 +143,7 @@ type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
 
 function addToDict<
   C extends keyof TranslationsMap,
-  T extends Record<Lang, Partial<Record<C, TranslationsMap[C]>>>
+  T extends Record<Lang, Partial<Record<C, Partial<TranslationsMap[C]>>>>
 >(translations: T) {
   for (const [language, data] of Object.entries(translations)) {
     for (const [category, terms] of Object.entries(data as any)) {
@@ -212,8 +206,8 @@ function localize(
 // === check ==========================================================
 
 function check<
-  C extends keyof TranslationsMap,
-  T extends Record<Lang, Record<C, TranslationsMap[C]>>
+  C extends Partial<keyof TranslationsMap>,
+  T extends Record<Lang, Partial<Record<C, Partial<TranslationsMap[C]>>>>
 >(translations: T): T
 
 function check<
