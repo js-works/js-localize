@@ -1,4 +1,4 @@
-export { addToDict, init, localize, check, Localization as Behavior, Category, Localizer, Terms, TermsOf, Translations, NumberFormat, DateFormat, RelativeTimeFormat, RelativeTimeUnit };
+export { addToDict, init, localize, check, Localization, Category, Localizer, Terms, TermsOf, Translations, NumberFormat, DateFormat, RelativeTimeFormat, RelativeTimeUnit };
 declare global {
     namespace Localize {
         interface TranslationsMap {

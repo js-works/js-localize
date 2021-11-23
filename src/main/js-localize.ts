@@ -20,7 +20,7 @@ export {
   localize,
   check,
   // --- types ---
-  Localization as Behavior,
+  Localization,
   Category,
   Localizer,
   Terms,

@@ -15,8 +15,8 @@ try {
         bundle: true,
         outfile,
         tsconfig: './tsconfig.json',
-        target: 'es2018',
-        minify: false,
+        target: 'es2020',
+        minify: true,
         sourcemap: true,
         format,
         define: {

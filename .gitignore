@@ -10,5 +10,6 @@
 /.vscode
 /nbproject
 /node_modules
-/build/*
+/build
+/dist
 /report.*.json
