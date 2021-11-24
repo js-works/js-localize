@@ -20,7 +20,7 @@ export {
   localize,
   // --- types ---
   Category,
-  CompleteTranslations,
+  FullTranslations,
   Language,
   Localizer,
   Localization,
@@ -217,7 +217,7 @@ function localize(
 
 // === check ==========================================================
 
-type CompleteTranslations<P extends `${string}*` = '*'> = {
+type FullTranslations<P extends `${string}*` = '*'> = {
   [L: Language]: {
     [C in keyof TranslationsMap]: P extends `${infer B}*`
       ? C extends `${B}${string}`
