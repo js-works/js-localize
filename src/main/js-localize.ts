@@ -217,15 +217,12 @@ function localize(
 
 // === check ==========================================================
 
-type RemoveTrailingStar<T extends `${string}*`> = T extends `${infer U}*`
-  ? U
-  : never
-
-// TODO: I guess we can simplify this
-type CompleteTranslations<B extends `${string}*` = '*'> = {
+type CompleteTranslations<P extends `${string}*` = '*'> = {
   [L: Language]: {
-    [C in keyof TranslationsMap]: C extends `${RemoveTrailingStar<B>}${string}`
-      ? TranslationsMap[C]
+    [C in keyof TranslationsMap]: P extends `${infer B}*`
+      ? C extends `${B}${string}`
+        ? TranslationsMap[C]
+        : never
       : never
   }
 }
