@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/js-works/js-localize#readme",
   "devDependencies": {
+    "archiver": "^5.3.0",
     "del": "^6.0.0",
     "esbuild": "^0.13.15"
   },
