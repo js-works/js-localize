@@ -15,12 +15,12 @@ import { Dict } from 'internal/dict'
 
 export {
   // -- functions ---
-  check,
   addToDict,
   init,
   localize,
   // --- types ---
   Category,
+  CompleteTranslations,
   Language,
   Localizer,
   Localization,
@@ -140,8 +140,8 @@ type Language = string
 type TranslationsMap = Localize.TranslationsMap
 type FirstArg<T> = T extends (arg: infer A) => any ? A : never
 
-type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
-  ? A
+type StartsWith<B extends string, T extends string> = T extends `${B}${string}`
+  ? T
   : never
 
 type PartialTranslations<
@@ -217,16 +217,17 @@ function localize(
 
 // === check ==========================================================
 
-function check<T extends Translations>(translations: T): T
+type RemoveTrailingStar<T extends `${string}*`> = T extends `${infer U}*`
+  ? U
+  : never
 
-function check<
-  B extends string,
-  C extends keyof TranslationsMap,
-  T extends Record<Language, Record<StartsWith<C, B>, TranslationsMap[C]>>
->(pattern: `${B}*`, translations: T): T
-
-function check(arg1: any, arg2?: any) {
-  return typeof arg1 === 'string' ? arg2 : arg1
+// TODO: I guess we can simplify this
+type CompleteTranslations<B extends `${string}*` = '*'> = {
+  [L: Language]: {
+    [C in keyof TranslationsMap]: C extends `${RemoveTrailingStar<B>}${string}`
+      ? TranslationsMap[C]
+      : never
+  }
 }
 
 // === local data ====================================================
