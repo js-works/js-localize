@@ -15,21 +15,21 @@ import { Dict } from 'internal/dict'
 
 export {
   // -- functions ---
+  check,
   addToDict,
   init,
   localize,
-  check,
   // --- types ---
-  Localization,
   Category,
   Localizer,
-  Terms,
-  TermsOf,
-  Translations,
-  NumberFormat,
+  Localization,
   DateFormat,
+  NumberFormat,
   RelativeTimeFormat,
-  RelativeTimeUnit
+  RelativeTimeUnit,
+  Translations,
+  Terms,
+  TermsOf
 }
 
 // === public types ==================================================
@@ -49,7 +49,11 @@ type Terms<
   > = any
 > = T
 
-type Translations = Record<Lang, Record<Category, Terms>>
+type Translations = PartialTranslations<{
+  [L: Lang]: {
+    [C in keyof TranslationsMap]?: Partial<TranslationsMap[C]>
+  }
+}>
 
 type TermsOf<A> = A extends Record<Lang, Record<infer C, infer T>>
   ? C extends Category
@@ -139,16 +143,23 @@ type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
   ? A
   : never
 
+type PartialTranslations<
+  T extends Record<Lang, Record<Category, Record<string, any>>>
+> = {
+  [L in keyof T]?: {
+    [C in keyof T[L]]?: Partial<T[L][C]>
+  }
+}
+
 // === addToDict =====================================================
 
-function addToDict<
-  C extends keyof TranslationsMap,
-  T extends Record<Lang, Partial<Record<C, Partial<TranslationsMap[C]>>>>
->(translations: T) {
-  for (const [language, data] of Object.entries(translations)) {
-    for (const [category, terms] of Object.entries(data as any)) {
-      for (const [key, value] of Object.entries(terms as any)) {
-        dict.addTranslation(language, category, key, value as any)
+function addToDict(...severalTranslations: Translations[]) {
+  for (const translations of severalTranslations) {
+    for (const [language, data] of Object.entries(translations)) {
+      for (const [category, terms] of Object.entries(data as any)) {
+        for (const [key, value] of Object.entries(terms as any)) {
+          dict.addTranslation(language, category, key, value as any)
+        }
       }
     }
   }
@@ -205,10 +216,7 @@ function localize(
 
 // === check ==========================================================
 
-function check<
-  C extends Partial<keyof TranslationsMap>,
-  T extends Record<Lang, Partial<Record<C, Partial<TranslationsMap[C]>>>>
->(translations: T): T
+function check<T extends Translations>(translations: T): T
 
 function check<
   B extends string,
