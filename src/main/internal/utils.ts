@@ -199,7 +199,7 @@ function parseDate(locale: string, dateString: string): Date | null {
 const dateParserByLocale = new Map<string, (date: string) => Date | null>()
 
 function getDateParser(locale: string): (s: string) => Date | null {
-  let dateParser = dateParserByLocale.get(locale)
+  let dateParser = dateParserByLocale.get(locale) || null
 
   if (!dateParser) {
     const example = Intl.DateTimeFormat(locale).format(new Date('2100-11-23'))
