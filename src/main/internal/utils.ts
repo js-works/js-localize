@@ -271,9 +271,22 @@ function formatDate(
 
 // === parseIsoDateString ============================================
 
+// this parses only the ISO date part, e.g. 2021-12-24
 function parseIsoDateString(s: string): Date | null {
-  // TODO!!!!!
-  return new Date(s)
+  if (!/^\d{0,4}-\d{0,2}-\d{0,2}$/.test(s)) {
+    return null
+  }
+
+  const date = new Date(s)
+
+  if (isNaN(date.getTime())) {
+    return null
+  }
+
+  // make sure that the year value is interpreted as full year
+  date.setFullYear(parseInt(s, 10))
+
+  return date
 }
 
 // === getCalendarWeek ===============================================
