@@ -69,7 +69,6 @@ class Dict {
       ret = String(ret(params))
     }
 
-    console.log('--->', locale, category, key, ':::', ret)
     return ret === null ? ret : String(ret)
   }
 }

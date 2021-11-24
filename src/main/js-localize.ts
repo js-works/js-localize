@@ -21,6 +21,7 @@ export {
   localize,
   // --- types ---
   Category,
+  Language,
   Localizer,
   Localization,
   DateFormat,
@@ -40,7 +41,7 @@ declare global {
   }
 }
 
-type Category = `${string}.${string}`
+type Category = string
 
 type Terms<
   T extends Record<
@@ -50,12 +51,12 @@ type Terms<
 > = T
 
 type Translations = PartialTranslations<{
-  [L: Lang]: {
+  [L: Language]: {
     [C in keyof TranslationsMap]?: Partial<TranslationsMap[C]>
   }
 }>
 
-type TermsOf<A> = A extends Record<Lang, Record<infer C, infer T>>
+type TermsOf<A> = A extends Record<Language, Record<infer C, infer T>>
   ? C extends Category
     ? T
     : never
@@ -135,7 +136,7 @@ type RelativeTimeUnit = Intl.RelativeTimeFormatUnit
 
 // === local types ===================================================
 
-type Lang = string
+type Language = string
 type TranslationsMap = Localize.TranslationsMap
 type FirstArg<T> = T extends (arg: infer A) => any ? A : never
 
@@ -144,7 +145,7 @@ type StartsWith<A extends string, B extends string> = A extends `${B}${string}`
   : never
 
 type PartialTranslations<
-  T extends Record<Lang, Record<Category, Record<string, any>>>
+  T extends Record<Language, Record<Category, Record<string, any>>>
 > = {
   [L in keyof T]?: {
     [C in keyof T[L]]?: Partial<T[L][C]>
@@ -221,7 +222,7 @@ function check<T extends Translations>(translations: T): T
 function check<
   B extends string,
   C extends keyof TranslationsMap,
-  T extends Record<Lang, Record<StartsWith<C, B>, TranslationsMap[C]>>
+  T extends Record<Language, Record<StartsWith<C, B>, TranslationsMap[C]>>
 >(pattern: `${B}*`, translations: T): T
 
 function check(arg1: any, arg2?: any) {
