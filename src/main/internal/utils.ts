@@ -230,9 +230,21 @@ function getDateParser(locale: string): (s: string) => Date | null {
         return null
       }
 
-      const { year, month, day } = match.groups!
+      const { year: y, month: m, day: d } = match.groups!
+      const year = parseInt(y)
+      const month = parseInt(m) - 1
+      const day = parseInt(d)
+      const date = new Date(0)
 
-      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      date.setFullYear(year, month, day)
+      date.setHours(0, 0, 0, 0)
+
+      return !isNaN(date.getTime()) &&
+        date.getFullYear() === year &&
+        date.getMonth() === month &&
+        date.getDate() === day
+        ? date
+        : null
     }
 
     dateParserByLocale.set(locale, dateParser)
@@ -255,36 +267,48 @@ function formatNumber(
 
 function formatDate(
   locale: string,
-  value: Date,
+  date: Date,
   format?: Intl.DateTimeFormatOptions | null
 ): string {
   if (!format) {
     if (getDateParser(locale) === parseIsoDateString) {
-      return value.toISOString().substr(0, 10)
+      const year = `000${date.getFullYear()}`.slice(-4)
+      const month = `0${date.getMonth() + 1}`.slice(-2)
+      const day = `0${date.getDate()}`.slice(-2)
+
+      return `${year}-${month}-${day}`
     }
 
     format = defaultDateFormat
   }
 
-  return new Intl.DateTimeFormat(locale, format).format(value)
+  return new Intl.DateTimeFormat(locale, format).format(date)
 }
 
 // === parseIsoDateString ============================================
 
 // this parses only the ISO date part, e.g. 2021-12-24
 function parseIsoDateString(s: string): Date | null {
-  if (!/^\d{0,4}-\d{0,2}-\d{0,2}$/.test(s)) {
+  if (!/^\d{1,4}-\d{1,2}-\d{1,2}$/.test(s)) {
     return null
   }
 
-  const date = new Date(s)
+  const [year, month, day] = s.split('-').map(parseInt)
+  const date = new Date(0)
+
+  date.setFullYear(year, month, day)
 
   if (isNaN(date.getTime())) {
     return null
   }
 
-  // make sure that the year value is interpreted as full year
-  date.setFullYear(parseInt(s, 10))
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  ) {
+    return null
+  }
 
   return date
 }
