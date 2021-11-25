@@ -58,6 +58,16 @@ type Translations = PartialTranslations<{
   }
 }>
 
+type FullTranslations<P extends `${string}*` = '*'> = {
+  [L: Language]: {
+    [C in keyof TranslationsMap]: P extends `${infer B}*`
+      ? C extends `${B}${string}`
+        ? TranslationsMap[C]
+        : never
+      : never
+  }
+}
+
 type TermsOf<A> = A extends Record<Language, Record<infer C, infer T>>
   ? C extends Category
     ? T
@@ -144,10 +154,6 @@ type Language = string
 type TranslationsMap = Localize.TranslationsMap
 type FirstArg<T> = T extends (arg: infer A) => any ? A : never
 
-type StartsWith<B extends string, T extends string> = T extends `${B}${string}`
-  ? T
-  : never
-
 type PartialTranslations<
   T extends Record<Language, Record<Category, Record<string, any>>>
 > = {
@@ -217,18 +223,6 @@ function localize(
 
   isFinal = true
   return createLocalizer(getLocale, behavior)
-}
-
-// === check ==========================================================
-
-type FullTranslations<P extends `${string}*` = '*'> = {
-  [L: Language]: {
-    [C in keyof TranslationsMap]: P extends `${infer B}*`
-      ? C extends `${B}${string}`
-        ? TranslationsMap[C]
-        : never
-      : never
-  }
 }
 
 // === local data ====================================================
