@@ -43,7 +43,7 @@ declare global {
   }
 }
 
-type Category = string
+type Category = `${string}.${string}`
 
 type Terms<
   T extends Record<
@@ -61,7 +61,7 @@ type Translations = PartialTranslations<{
 type FullTranslations<B extends string = ''> = {
   [L: Language]: {
     [C in keyof TranslationsMap]: C extends Category
-      ? C extends (B extends '' ? C : `${B}${string}`)
+      ? C extends (B extends '' ? C : B | `${B}.${string}`)
         ? TranslationsMap[C] extends Terms
           ? TranslationsMap[C]
           : never
