@@ -58,11 +58,13 @@ type Translations = PartialTranslations<{
   }
 }>
 
-type FullTranslations<P extends `${string}*` = '*'> = {
+type FullTranslations<B extends string = ''> = {
   [L: Language]: {
-    [C in keyof TranslationsMap]: P extends `${infer B}*`
-      ? C extends `${B}${string}`
-        ? TranslationsMap[C]
+    [C in keyof TranslationsMap]: C extends Category
+      ? C extends (B extends '' ? C : `${B}${string}`)
+        ? TranslationsMap[C] extends Terms
+          ? TranslationsMap[C]
+          : never
         : never
       : never
   }
