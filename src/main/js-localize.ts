@@ -20,12 +20,12 @@ export {
   localize,
   // --- types ---
   Category,
+  DateFormat,
   DayNameFormat,
   FullTranslations,
   Language,
   Localizer,
   Localization,
-  DateFormat,
   MonthNameFormat,
   NumberFormat,
   RelativeTimeFormat,
