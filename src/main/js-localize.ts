@@ -16,7 +16,7 @@ import { Dict } from 'internal/dict'
 export {
   // -- functions ---
   addToDict,
-  init,
+  initI18n as init,
   localize,
   // --- types ---
   Category,
@@ -68,7 +68,7 @@ type TermsOf<A> = A extends Record<Language, Record<infer C, infer T>>
     : never
   : never
 
-type Localization = Readonly<{
+interface Localization {
   translate<
     C extends keyof TranslationsMap,
     K extends keyof TranslationsMap[C]
@@ -95,7 +95,7 @@ type Localization = Readonly<{
   getFirstDayOfWeek(locale: string): number // 0 to 6, 0 means Sunday
   getCalendarWeek(locale: string, date: Date): number // 1 to 53
   getWeekendDays(locale: string): Readonly<number[]> // array of integers between 0 and 6
-}>
+}
 
 type Localizer = Readonly<{
   getLocale(): string
@@ -168,7 +168,7 @@ function addToDict(...severalTranslations: Translations[]) {
 
 // === init ==========================================================
 
-function init(params: {
+function initI18n(params: {
   defaultLocale?: string
 
   customize?(

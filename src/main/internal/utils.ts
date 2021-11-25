@@ -210,8 +210,8 @@ function getDateParser(locale: string): (s: string) => Date | null {
       example.indexOf('23') === -1
     ) {
       // too complex date format - use ISO format as fallback
-      dateParserByLocale.set(locale, parseIsoDateString)
-      return parseIsoDateString
+      dateParserByLocale.set(locale, parseIsoDate)
+      return parseIsoDate
     }
 
     const regExp = new RegExp(
@@ -237,7 +237,6 @@ function getDateParser(locale: string): (s: string) => Date | null {
       const date = new Date(0)
 
       date.setFullYear(year, month, day)
-      date.setHours(0, 0, 0, 0)
 
       return !isNaN(date.getTime()) &&
         date.getFullYear() === year &&
@@ -271,12 +270,8 @@ function formatDate(
   format?: Intl.DateTimeFormatOptions | null
 ): string {
   if (!format) {
-    if (getDateParser(locale) === parseIsoDateString) {
-      const year = `000${date.getFullYear()}`.slice(-4)
-      const month = `0${date.getMonth() + 1}`.slice(-2)
-      const day = `0${date.getDate()}`.slice(-2)
-
-      return `${year}-${month}-${day}`
+    if (getDateParser(locale) === parseIsoDate) {
+      return formatIsoDate(date)
     }
 
     format = defaultDateFormat
@@ -285,15 +280,18 @@ function formatDate(
   return new Intl.DateTimeFormat(locale, format).format(date)
 }
 
-// === parseIsoDateString ============================================
+// === parseIsoDate ==================================================
 
 // this parses only the ISO date part, e.g. 2021-12-24
-function parseIsoDateString(s: string): Date | null {
+function parseIsoDate(s: string): Date | null {
   if (!/^\d{1,4}-\d{1,2}-\d{1,2}$/.test(s)) {
     return null
   }
 
-  const [year, month, day] = s.split('-').map(parseInt)
+  const [year, month, day] = s
+    .split('-')
+    .map((n, idx) => parseInt(n) - (idx === 1 ? 1 : 0))
+
   const date = new Date(0)
 
   date.setFullYear(year, month, day)
@@ -311,6 +309,16 @@ function parseIsoDateString(s: string): Date | null {
   }
 
   return date
+}
+
+// === formatIsoDate =================================================
+
+function formatIsoDate(date: Date): string {
+  const year = `000${date.getFullYear()}`.slice(-4)
+  const month = `0${date.getMonth() + 1}`.slice(-2)
+  const day = `0${date.getDate()}`.slice(-2)
+
+  return `${year}-${month}-${day}`
 }
 
 // === getCalendarWeek ===============================================
