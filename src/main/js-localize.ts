@@ -16,15 +16,17 @@ import { Dict } from 'internal/dict'
 export {
   // -- functions ---
   addToDict,
-  initI18n as init,
+  initI18n,
   localize,
   // --- types ---
   Category,
+  DayNameFormat,
   FullTranslations,
   Language,
   Localizer,
   Localization,
   DateFormat,
+  MonthNameFormat,
   NumberFormat,
   RelativeTimeFormat,
   RelativeTimeUnit,
@@ -123,16 +125,18 @@ type Localizer = Readonly<{
   getFirstDayOfWeek(): number // 0 to 6, 0 means Sunday
   getWeekendDays(): Readonly<number[]> // array of integer form 0 to 6
   getCalendarWeek(date: Date): number // 1 to 53
-  getDayName(index: number, format?: 'long' | 'short' | 'narrow'): string
-  getDayNames(format?: 'long' | 'short' | 'narrow'): string[]
-  getMonthName(index: number, format?: 'long' | 'short' | 'narrow'): string
-  getMonthNames(format?: 'long' | 'short' | 'narrow'): string[]
+  getDayName(index: number, format?: DayNameFormat): string
+  getDayNames(format?: DayNameFormat): string[]
+  getMonthName(index: number, format?: MonthNameFormat): string
+  getMonthNames(format?: MonthNameFormat): string[]
 }>
 
 interface NumberFormat extends Intl.NumberFormatOptions {}
 interface DateFormat extends Intl.DateTimeFormatOptions {}
 type RelativeTimeFormat = Intl.RelativeTimeFormatOptions
 type RelativeTimeUnit = Intl.RelativeTimeFormatUnit
+type DayNameFormat = 'long' | 'short' | 'narrow'
+type MonthNameFormat = 'long' | 'short' | 'narrow'
 
 // === local types ===================================================
 
@@ -166,7 +170,7 @@ function addToDict(...severalTranslations: Translations[]) {
   }
 }
 
-// === init ==========================================================
+// === initI18n ======================================================
 
 function initI18n(params: {
   defaultLocale?: string
@@ -179,7 +183,7 @@ function initI18n(params: {
 }): void {
   if (isFinal) {
     throw (
-      'Illegal invocation of `init(...)`' +
+      'Illegal invocation of `initI18n(...)`' +
       '- must only be used at start of the app' +
       ' before any other localization function has been used'
     )
@@ -237,7 +241,7 @@ const dict = new Dict()
 let isFinal = false
 
 // default locale is "en-US", but this can be customized
-// by using the `init` function
+// by using the `initI18n` function
 let defaultLocale = 'en-US'
 
 // === local functions ===============================================
