@@ -4,26 +4,26 @@ import {
   formatRelativeTime,
   getCalendarWeek,
   getFirstDayOfWeek,
+  getLocaleInfo,
   getWeekendDays,
   parseDate,
   parseNumber
 } from './internal/utils'
-
-import { Dict } from 'internal/dict'
 
 // === exports =======================================================
 
 export {
   // -- functions ---
   addToDict,
-  initI18n,
+  customize,
+  defineTerms,
   localize,
   // --- types ---
   Category,
   DateFormat,
   DayNameFormat,
   FullTranslations,
-  Language,
+  Locale,
   Localizer,
   Localization,
   MonthNameFormat,
@@ -31,35 +31,51 @@ export {
   RelativeTimeFormat,
   RelativeTimeUnit,
   Translations,
+  TermKey,
   Terms,
   TermsOf
 }
+
+// === constants =====================================================
+
+const defaultLocale = 'en-US'
+const regexCategory = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/
+const regexTermKey = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/
+const seperator = '[<->]'
+
+// === local data ====================================================
+
+const dict = new Map<string, string | Function>()
 
 // === public types ==================================================
 
 declare global {
   namespace Localize {
-    interface TranslationsMap {}
+    interface TranslationsMap {
+      //'jsCockpit.test': TermsOf<typeof translations>
+    }
   }
 }
 
+type Locale = string
 type Category = `${string}.${string}`
+type TermKey = string
 
 type Terms<
   T extends Record<
-    string,
-    string | ((params: Record<string, any>) => string)
+    TermKey,
+    string | ((params: Record<string, any>, localizer: Localizer) => string)
   > = any
 > = T
 
 type Translations = PartialTranslations<{
-  [L: Language]: {
+  [L: Locale]: {
     [C in keyof TranslationsMap]?: Partial<TranslationsMap[C]>
   }
 }>
 
 type FullTranslations<B extends string = ''> = {
-  [L: Language]: {
+  [L: Locale]: {
     [C in keyof TranslationsMap]: C extends Category
       ? C extends (B extends '' ? C : B | `${B}.${string}`)
         ? TranslationsMap[C] extends Terms
@@ -70,7 +86,7 @@ type FullTranslations<B extends string = ''> = {
   }
 }
 
-type TermsOf<A> = A extends Record<Language, Record<infer C, infer T>>
+type TermsOf<A> = A extends Record<Locale, Record<infer C, infer T>>
   ? C extends Category
     ? T
     : never
@@ -87,31 +103,30 @@ interface Localization {
     C extends keyof TranslationsMap,
     K extends keyof TranslationsMap[C]
   >(
-    locale: string,
+    locale: Locale,
     category: C & Category,
-    key: K & string,
+    termKey: K & TermKey,
     params?: FirstArg<TranslationsMap[C][K]>
   ): string | null
 
-  parseNumber(locale: string, numberString: string): number | null
-  parseDate(locale: string, dateString: string): Date | null
-
-  formatNumber(locale: string, value: number, format?: NumberFormat): string
-  formatDate(locale: string, value: Date, format?: DateFormat | null): string
+  parseNumber(locale: Locale, numberString: string): number | null
+  parseDate(locale: Locale, dateString: string): Date | null
+  formatNumber(locale: Locale, value: number, format?: NumberFormat): string
+  formatDate(locale: Locale, value: Date, format?: DateFormat | null): string
 
   formatRelativeTime(
-    locale: string,
+    locale: Locale,
     value: number,
     unit: RelativeTimeUnit,
     format?: RelativeTimeFormat
   ): string
 
-  getFirstDayOfWeek(locale: string): number // 0 to 6, 0 means Sunday
-  getCalendarWeek(locale: string, date: Date): number // 1 to 53
-  getWeekendDays(locale: string): Readonly<number[]> // array of integers between 0 and 6
+  getFirstDayOfWeek(locale: Locale): number // 0 to 6, 0 means Sunday
+  getCalendarWeek(locale: Locale, date: Date): number // 1 to 53
+  getWeekendDays(locale: Locale): Readonly<number[]> // array of integers between 0 and 6
 }
 
-type Localizer = Readonly<{
+interface Localizer {
   getLocale(): string
 
   translate<
@@ -119,7 +134,7 @@ type Localizer = Readonly<{
     K extends keyof TranslationsMap[C]
   >(
     category: C & Category,
-    key: K & string,
+    termKey: K & TermKey,
     params?: FirstArg<TranslationsMap[C][K]>
   ): string
 
@@ -141,7 +156,7 @@ type Localizer = Readonly<{
   getDayNames(format?: DayNameFormat): string[]
   getMonthName(index: number, format?: MonthNameFormat): string
   getMonthNames(format?: MonthNameFormat): string[]
-}>
+}
 
 interface NumberFormat extends Intl.NumberFormatOptions {}
 interface DateFormat extends Intl.DateTimeFormatOptions {}
@@ -152,98 +167,183 @@ type MonthNameFormat = 'long' | 'short' | 'narrow'
 
 // === local types ===================================================
 
-type Language = string
 type TranslationsMap = Localize.TranslationsMap
-type FirstArg<T> = T extends (arg: infer A) => any ? A : never
+type FirstArg<T> = T extends (arg1: infer A, ...rest: any[]) => any ? A : never
 
 type PartialTranslations<
-  T extends Record<Language, Record<Category, Record<string, any>>>
+  T extends Record<Locale, Record<Category, Record<string, any>>>
 > = {
   [L in keyof T]?: {
     [C in keyof T[L]]?: Partial<T[L][C]>
   }
 }
 
+// === defineTerms ===================================================
+
+function defineTerms<T>(
+  translations: T & Record<Locale, Record<Category, Terms>>
+): T {
+  return translations
+}
+
 // === addToDict =====================================================
 
 function addToDict(...severalTranslations: Translations[]) {
   for (const translations of severalTranslations) {
-    for (const [language, data] of Object.entries(translations)) {
+    for (const [locale, data] of Object.entries(translations)) {
       for (const [category, terms] of Object.entries(data as any)) {
-        for (const [key, value] of Object.entries(terms as any)) {
-          dict.addTranslation(language, category, key, value as any)
+        if (!regexCategory.test(category)) {
+          throw new TypeError(
+            `Illegal category name "${category}" for localization`
+          )
+        }
+
+        for (const [termKey, value] of Object.entries(terms as any)) {
+          if (!regexTermKey.test(termKey)) {
+            throw new TypeError(
+              `Illegal term key name "${termKey}" for localization`
+            )
+          }
+
+          const key = `${locale}${seperator}${category}${seperator}${termKey}`
+          //console.log('addToDict:', key)
+          dict.set(key, value as any)
         }
       }
     }
   }
 }
 
-// === initI18n ======================================================
+// === customize =====================================================
 
-function initI18n(params: {
-  defaultLocale?: string
-
-  customize?(
+function customize(
+  mapper: (
     self: Localization,
     base: Localization,
     defaultLocale: string
-  ): Partial<Localization>
-}): void {
-  if (isFinal) {
-    throw (
-      'Illegal invocation of `initI18n(...)`' +
-      '- must only be used at start of the app' +
-      ' before any other localization function has been used'
-    )
-  }
+  ) => Partial<Localization>
+): Localization {
+  const self = { ...baseLocalization }
 
-  isFinal = true
-
-  if (params.defaultLocale) {
-    defaultLocale = params.defaultLocale
-  }
-
-  if (params.customize) {
-    const self = { ...baseBehavior }
-
-    behavior = Object.assign(
-      self,
-      params.customize(self, baseBehavior, defaultLocale)
-    )
-  }
+  return Object.assign(self, mapper(self, baseLocalization, defaultLocale))
 }
 
 // === localize ======================================================
 
-function localize(
-  localeOrGetLocale: string | null | (() => string | null)
-): Localizer {
-  const getLocale =
-    typeof localeOrGetLocale === 'function'
-      ? () => localeOrGetLocale() || defaultLocale
-      : () => localeOrGetLocale || defaultLocale
+const localize = (() => {
+  // for two different performance optimizations
+  const cachedLocalizers = new Map<Locale, WeakMap<Localization, Localizer>>()
+  let latestLocale: Locale | undefined
+  let latestLocalization: Localization | undefined
+  let latestLocalizer: Localizer | undefined
 
-  isFinal = true
-  return createLocalizer(getLocale, behavior)
-}
+  return (
+    localeOrGetLocale: Locale | null | (() => Locale | null),
+    localizationOrGetLocalization?:
+      | Localization
+      | null
+      | (() => Localization | null)
+  ): Localizer => {
+    const _locale =
+      typeof localeOrGetLocale !== 'function'
+        ? (localeOrGetLocale as Locale)
+        : null
 
-// === local data ====================================================
+    const _localization =
+      typeof localizationOrGetLocalization !== 'function'
+        ? (localizationOrGetLocalization as Localization)
+        : null
 
-// singleton dictionary to store the translations
-const dict = new Dict()
+    if (_locale && _localization) {
+      // first performance optimization (maybe premature optimization)
+      if (_locale === latestLocale && _localization === latestLocalization) {
+        return latestLocalizer!
+      }
 
-// flag that indicates whether an initial customizing
-// of the localization behavior is still possible or not
-let isFinal = false
+      // second performance optimization
+      let localizer: Localizer | undefined
+      let weakMap = cachedLocalizers.get(_locale)
 
-// default locale is "en-US", but this can be customized
-// by using the `initI18n` function
-let defaultLocale = 'en-US'
+      if (weakMap) {
+        localizer = weakMap.get(_localization)
+      } else {
+        weakMap = new WeakMap()
+        cachedLocalizers.set(_locale, weakMap)
+      }
+
+      if (!localizer) {
+        localizer = createLocalizer(
+          () => _locale,
+          () => _localization
+        )
+
+        weakMap.set(_localization, localizer)
+      }
+
+      // for first performance optimization
+      latestLocale = _locale
+      latestLocalization = _localization
+      latestLocalizer = localizer
+
+      return localizer
+    }
+
+    const _getLocale =
+      typeof localeOrGetLocale === 'function' ? localeOrGetLocale : null
+
+    const _getLocalization =
+      typeof localizationOrGetLocalization === 'function'
+        ? localizationOrGetLocalization
+        : null
+
+    const getLocale = _getLocale
+      ? () => _getLocale() || defaultLocale
+      : () => _locale || defaultLocale
+
+    const getLocalization = _getLocalization
+      ? () => _getLocalization() || defaultLocalization
+      : () => _localization || defaultLocalization
+
+    return createLocalizer(getLocale, getLocalization)
+  }
+})()
 
 // === local functions ===============================================
 
-const baseBehavior: Localization = {
-  translate: dict.translate.bind(dict) as any, // TODO
+const baseLocalization: Localization = {
+  translate(locale, category, termKey, params?): string | null {
+    const key = `${category}${seperator}${termKey}`
+    const { baseName, language } = getLocaleInfo(locale)
+
+    let ret = dict.get(`${locale}${seperator}${key}`) || null
+
+    if (ret === null && locale) {
+      if (baseName !== locale) {
+        ret = dict.get(`${baseName}${seperator}${key}`) || null
+      }
+
+      if (ret === null) {
+        if (language !== baseName) {
+          ret = dict.get(`${language}${seperator}${key}`) || null
+        }
+      }
+    }
+
+    if (ret !== null && params) {
+      if (typeof ret !== 'function') {
+        console.log(ret) // TODO
+
+        throw new Error(
+          `Invalid translation parameters for "${key}" in locale "${locale}"`
+        )
+      }
+
+      ret = String(ret(params, localize(locale, baseLocalization)))
+    }
+
+    return ret === null ? ret : String(ret)
+  },
+
   formatNumber,
   formatDate,
   parseNumber,
@@ -254,54 +354,59 @@ const baseBehavior: Localization = {
   getWeekendDays
 }
 
-let behavior: Localization = {
-  ...baseBehavior,
-
-  translate(locale, category, key, replacements?) {
-    let translation = baseBehavior.translate(
-      locale,
-      category,
-      key,
-      replacements
-    )
+const defaultLocalization = customize((self, base) => ({
+  translate(locale, category, termKey, replacements?) {
+    let translation = base.translate(locale, category, termKey, replacements)
 
     if (translation === null && defaultLocale !== locale) {
-      translation = baseBehavior.translate(
+      translation = base.translate(
         defaultLocale,
         category,
-        key,
+        termKey,
         replacements
       )
     }
 
     return translation
   }
-}
+}))
 
 function createLocalizer(
-  getLocale: () => string,
-  i18n: Localization
+  getLocale: () => Locale,
+  getLocalization: () => Localization
 ): Localizer {
+  Intl
   const localizer: Localizer = {
     getLocale,
 
-    translate: (category, key, replacements?) =>
-      i18n.translate(getLocale(), category, key, replacements) || '',
+    translate: (category, termKey, replacements?) =>
+      getLocalization().translate(
+        getLocale(),
+        category,
+        termKey,
+        replacements
+      ) || '',
 
-    parseNumber: (numberString) => i18n.parseNumber(getLocale(), numberString),
-    parseDate: (dateString) => i18n.parseDate(getLocale(), dateString),
+    parseNumber: (numberString) =>
+      getLocalization().parseNumber(getLocale(), numberString),
+
+    parseDate: (dateString) =>
+      getLocalization().parseDate(getLocale(), dateString),
 
     formatNumber: (number, format) =>
-      i18n.formatNumber(getLocale(), number, format),
+      getLocalization().formatNumber(getLocale(), number, format),
 
-    formatDate: (date, format) => i18n.formatDate(getLocale(), date, format),
+    formatDate: (date, format) =>
+      getLocalization().formatDate(getLocale(), date, format),
 
     formatRelativeTime: (number, unit, format) =>
-      i18n.formatRelativeTime(getLocale(), number, unit, format),
+      getLocalization().formatRelativeTime(getLocale(), number, unit, format),
 
-    getFirstDayOfWeek: () => i18n.getFirstDayOfWeek(getLocale()),
-    getWeekendDays: () => i18n.getWeekendDays(getLocale()),
-    getCalendarWeek: (date: Date) => i18n.getCalendarWeek(getLocale(), date),
+    getFirstDayOfWeek: () => getLocalization().getFirstDayOfWeek(getLocale()),
+    getWeekendDays: () => getLocalization().getWeekendDays(getLocale()),
+
+    getCalendarWeek: (date: Date) =>
+      getLocalization().getCalendarWeek(getLocale(), date),
 
     getDayName(index, format = 'long') {
       const date = new Date(1970, 0, 4 + (index % 7))
@@ -342,3 +447,45 @@ function createLocalizer(
 
   return localizer
 }
+
+/*
+const x = defineTerms({
+  en: {
+    'jsCockpit.paginationBar': {
+      itemsXToYOfZ(
+        params: {
+          firstItemNo: number
+          lastItemNo: number
+          itemCount: number
+        },
+        i18n: Localizer
+      ) {
+        const firstItemNo = i18n.formatNumber(params.firstItemNo)
+        const lastItemNo = i18n.formatNumber(params.lastItemNo)
+        const itemCount = i18n.formatNumber(params.itemCount)
+
+        return `${firstItemNo} - ${lastItemNo} / ${itemCount}`
+      },
+
+      itemXOfY(i18n: Localizer, params: { itemNo: number; itemCount: number }) {
+        const itemNo = i18n.formatNumber(params.itemNo)
+        const itemCount = i18n.formatNumber(params.itemCount)
+
+        return `${itemNo} - ${itemCount}`
+      }
+    }
+  }
+})
+*/
+/*
+const translations = defineTerms({
+  de: {
+    'jsCockpit.test': {
+      term1: 'ttttt',
+      term2: (params: { param1: string; param2: number }) => {
+        return ''
+      }
+    }
+  }
+})
+*/
