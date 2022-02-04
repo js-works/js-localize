@@ -10,6 +10,8 @@ import {
   parseNumber
 } from './internal/utils'
 
+import { observeLocale } from './internal/locale-detection'
+
 // === exports =======================================================
 
 export {
@@ -124,6 +126,15 @@ interface Localization {
   getFirstDayOfWeek(locale: Locale): number // 0 to 6, 0 means Sunday
   getCalendarWeek(locale: Locale, date: Date): number // 1 to 53
   getWeekendDays(locale: Locale): Readonly<number[]> // array of integers between 0 and 6
+
+  observeLocale(
+    element: HTMLElement,
+    onChange: () => void
+  ): {
+    getLocale(): Locale | null
+    connect(): void
+    disconnect(): void
+  }
 }
 
 interface Localizer {
@@ -156,6 +167,17 @@ interface Localizer {
   getDayNames(format?: DayNameFormat): string[]
   getMonthName(index: number, format?: MonthNameFormat): string
   getMonthNames(format?: MonthNameFormat): string[]
+}
+
+interface ElementConnector {
+  element: HTMLElement
+  onChange(): void
+
+  init(
+    getLocale: () => Locale | null,
+    connect: () => void,
+    disconnect: () => void
+  ): void
 }
 
 interface NumberFormat extends Intl.NumberFormatOptions {}
@@ -230,14 +252,23 @@ function customize(
 
 // === localize ======================================================
 
-const localize = (() => {
+const localize: {
+  (
+    localeOrGetLocale: Locale | null | (() => Locale | null),
+    localizationOrGetLocalization?:
+      | Localization
+      | null
+      | (() => Localization | null)
+  ): Localizer
+  (connector: ElementConnector, localization?: Localization): Localizer
+} = (() => {
   // for two different performance optimizations
   const cachedLocalizers = new Map<Locale, WeakMap<Localization, Localizer>>()
   let latestLocale: Locale | undefined
   let latestLocalization: Localization | undefined
   let latestLocalizer: Localizer | undefined
 
-  return (
+  const localizeStandard = (
     localeOrGetLocale: Locale | null | (() => Locale | null),
     localizationOrGetLocalization?:
       | Localization
@@ -306,6 +337,43 @@ const localize = (() => {
 
     return createLocalizer(getLocale, getLocalization)
   }
+
+  const localizeElement = (
+    connector: ElementConnector,
+    localization = defaultLocalization
+  ) => {
+    let getLocale: () => Locale | null
+    let connect: () => void
+    let disconnect: () => void
+
+    const result = localization.observeLocale(
+      connector.element,
+      connector.onChange
+    )
+
+    getLocale = result.getLocale
+    connect = result.connect
+    disconnect = result.disconnect
+
+    connector.init(
+      () => getLocale(),
+      () => connect(),
+      () => disconnect()
+    )
+
+    return localizeStandard(
+      () => getLocale(),
+      () => localization
+    )
+  }
+
+  return (arg1: any, arg2?: any) => {
+    if (arg1 && typeof arg1 === 'object') {
+      return localizeElement(arg1)
+    }
+
+    return localizeStandard(arg1, arg2)
+  }
 })()
 
 // === local functions ===============================================
@@ -351,7 +419,11 @@ const baseLocalization: Localization = {
   formatRelativeTime,
   getFirstDayOfWeek,
   getCalendarWeek,
-  getWeekendDays
+  getWeekendDays,
+
+  observeLocale(element: HTMLElement, onChange: () => void) {
+    return observeLocale(element, onChange)
+  }
 }
 
 const defaultLocalization = customize((self, base) => ({
@@ -447,45 +519,3 @@ function createLocalizer(
 
   return localizer
 }
-
-/*
-const x = defineTerms({
-  en: {
-    'jsCockpit.paginationBar': {
-      itemsXToYOfZ(
-        params: {
-          firstItemNo: number
-          lastItemNo: number
-          itemCount: number
-        },
-        i18n: Localizer
-      ) {
-        const firstItemNo = i18n.formatNumber(params.firstItemNo)
-        const lastItemNo = i18n.formatNumber(params.lastItemNo)
-        const itemCount = i18n.formatNumber(params.itemCount)
-
-        return `${firstItemNo} - ${lastItemNo} / ${itemCount}`
-      },
-
-      itemXOfY(i18n: Localizer, params: { itemNo: number; itemCount: number }) {
-        const itemNo = i18n.formatNumber(params.itemNo)
-        const itemCount = i18n.formatNumber(params.itemCount)
-
-        return `${itemNo} - ${itemCount}`
-      }
-    }
-  }
-})
-*/
-/*
-const translations = defineTerms({
-  de: {
-    'jsCockpit.test': {
-      term1: 'ttttt',
-      term2: (params: { param1: string; param2: number }) => {
-        return ''
-      }
-    }
-  }
-})
-*/
