@@ -19,11 +19,13 @@ export {
   addToDict,
   customize,
   defineTerms,
+  initI18n,
   localize,
   // --- types ---
   Category,
   DateFormat,
   DayNameFormat,
+  ElementConnector,
   FullTranslations,
   Locale,
   Localizer,
@@ -48,6 +50,7 @@ const seperator = '[<->]'
 // === local data ====================================================
 
 const dict = new Map<string, string | Function>()
+let customizedLocalization: Localization | null = null
 
 // === public types ==================================================
 
@@ -127,7 +130,7 @@ interface Localization {
   getCalendarWeek(locale: Locale, date: Date): number // 1 to 53
   getWeekendDays(locale: Locale): Readonly<number[]> // array of integers between 0 and 6
 
-  observeLocale(
+  observe(
     element: HTMLElement,
     onChange: () => void
   ): {
@@ -275,6 +278,10 @@ const localize: {
       | null
       | (() => Localization | null)
   ): Localizer => {
+    if (!customizedLocalization) {
+      customizedLocalization = defaultLocalization
+    }
+
     const _locale =
       typeof localeOrGetLocale !== 'function'
         ? (localeOrGetLocale as Locale)
@@ -332,39 +339,25 @@ const localize: {
       : () => _locale || defaultLocale
 
     const getLocalization = _getLocalization
-      ? () => _getLocalization() || defaultLocalization
-      : () => _localization || defaultLocalization
+      ? () => _getLocalization() || customizedLocalization!
+      : () => _localization || customizedLocalization!
 
     return createLocalizer(getLocale, getLocalization)
   }
 
-  const localizeElement = (
-    connector: ElementConnector,
-    localization = defaultLocalization
-  ) => {
-    let getLocale: () => Locale | null
-    let connect: () => void
-    let disconnect: () => void
+  const localizeElement = (connector: ElementConnector) => {
+    if (!customizedLocalization) {
+      customizedLocalization = defaultLocalization
+    }
 
-    const result = localization.observeLocale(
+    const result = customizedLocalization.observe(
       connector.element,
       connector.onChange
     )
 
-    getLocale = result.getLocale
-    connect = result.connect
-    disconnect = result.disconnect
+    connector.init(result.getLocale, result.connect, result.disconnect)
 
-    connector.init(
-      () => getLocale(),
-      () => connect(),
-      () => disconnect()
-    )
-
-    return localizeStandard(
-      () => getLocale(),
-      () => localization
-    )
+    return localizeStandard(result.getLocale, () => customizedLocalization)
   }
 
   return (arg1: any, arg2?: any) => {
@@ -375,6 +368,28 @@ const localize: {
     return localizeStandard(arg1, arg2)
   }
 })()
+
+// === initI18n =======================================================
+
+function initI18n(
+  mapper: (self: Localization, base: Localization) => Partial<Localization>
+): void
+
+function initI18n(localization: Localization): void
+
+function initI18n(arg1: any): void {
+  if (customizedLocalization) {
+    throw new Error(
+      "Function 'adapt' can only be called once at the begin of the application"
+    )
+  }
+
+  if (typeof arg1 === 'function') {
+    initI18n(customize(arg1))
+  } else {
+    customizedLocalization = arg1
+  }
+}
 
 // === local functions ===============================================
 
@@ -421,7 +436,7 @@ const baseLocalization: Localization = {
   getCalendarWeek,
   getWeekendDays,
 
-  observeLocale(element: HTMLElement, onChange: () => void) {
+  observe(element: HTMLElement, onChange: () => void) {
     return observeLocale(element, onChange)
   }
 }

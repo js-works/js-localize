@@ -1,6 +1,6 @@
 {
   "name": "js-localize",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "",
   "main": "./dist/js-localize.esm.js",
   "module": "./dist/js-localize.esm.js",
